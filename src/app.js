@@ -6,12 +6,32 @@ const rateLimit = require('express-rate-limit');
 
 const app = express();
 
-// ─── SECURITY MIDDLEWARE ──────────────────────────
-app.use(helmet());
-app.use(cors({
-  origin: (process.env.ALLOWED_ORIGINS || 'http://localhost:3000').split(','),
+// ─── CORS ─────────────────────────────────────────
+// Allow all Vercel deployments + localhost for dev
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, Postman)
+    if (!origin) return callback(null, true);
+    // Allow all vercel.app subdomains
+    if (origin.endsWith('.vercel.app')) return callback(null, true);
+    // Allow localhost for development
+    if (origin.startsWith('http://localhost')) return callback(null, true);
+    // Allow custom domain when set
+    const allowed = (process.env.ALLOWED_ORIGINS || '').split(',').map(o => o.trim());
+    if (allowed.includes(origin)) return callback(null, true);
+    // Block everything else
+    callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
-}));
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Handle preflight for all routes
+
+// ─── SECURITY MIDDLEWARE ──────────────────────────
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(express.json({ limit: '10kb' }));
 app.use(morgan('dev'));
 
@@ -24,7 +44,6 @@ const globalLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Stricter limiter on auth routes — prevent OTP abuse
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
@@ -57,7 +76,6 @@ app.get('/', (req, res) => {
   res.json({
     name: 'NEXUM API',
     tagline: 'The infrastructure beneath every exchange.',
-    docs: 'https://docs.nexum.africa',
     version: 'v1',
     endpoints: {
       health:     'GET  /health',
@@ -71,7 +89,7 @@ app.get('/', (req, res) => {
   });
 });
 
-// ─── 404 HANDLER ─────────────────────────────────
+// ─── 404 ──────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found', path: req.originalUrl });
 });
