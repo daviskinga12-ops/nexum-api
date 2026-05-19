@@ -6,20 +6,18 @@ const rateLimit = require('express-rate-limit');
 
 const app = express();
 
+// ─── TRUST PROXY ─────────────────────────────────
+// Required for Render — sits behind a reverse proxy
+app.set('trust proxy', 1);
+
 // ─── CORS ─────────────────────────────────────────
-// Allow all Vercel deployments + localhost for dev
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, curl, Postman)
     if (!origin) return callback(null, true);
-    // Allow all vercel.app subdomains
     if (origin.endsWith('.vercel.app')) return callback(null, true);
-    // Allow localhost for development
     if (origin.startsWith('http://localhost')) return callback(null, true);
-    // Allow custom domain when set
     const allowed = (process.env.ALLOWED_ORIGINS || '').split(',').map(o => o.trim());
     if (allowed.includes(origin)) return callback(null, true);
-    // Block everything else
     callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
@@ -28,7 +26,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options('/{0,}', cors(corsOptions)); // Handle preflight for all routes
+app.options('/{0,}', cors(corsOptions));
 
 // ─── SECURITY MIDDLEWARE ──────────────────────────
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
@@ -42,12 +40,14 @@ const globalLimiter = rateLimit({
   message: { error: 'Too many requests. Please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
 });
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 20,
   message: { error: 'Too many auth attempts. Please try again in 15 minutes.' },
+  validate: { xForwardedForHeader: false },
 });
 
 app.use(globalLimiter);
@@ -78,13 +78,13 @@ app.get('/', (req, res) => {
     tagline: 'The infrastructure beneath every exchange.',
     version: 'v1',
     endpoints: {
-      health:     'GET  /health',
-      auth:       'POST /api/v1/auth/register | /login | /verify-otp | /identity',
-      trust:      'GET  /api/v1/trust/:phone',
-      mpesa:      'POST /api/v1/mpesa/stk-push | /callback',
-      profile:    'GET  /api/v1/profile/me',
-      api:        'POST /api/v1/api/keys | GET /api/v1/api/usage',
-      logistics:  'POST /api/v1/logistics/orders | GET /api/v1/logistics/orders/:id',
+      health:    'GET  /health',
+      auth:      'POST /api/v1/auth/register | /login | /verify-otp | /identity',
+      trust:     'GET  /api/v1/trust/:phone',
+      mpesa:     'POST /api/v1/mpesa/stk-push | /callback',
+      profile:   'GET  /api/v1/profile/me',
+      api:       'POST /api/v1/api/keys | GET /api/v1/api/usage',
+      logistics: 'POST /api/v1/logistics/orders | GET /api/v1/logistics/orders/:id',
     },
   });
 });
