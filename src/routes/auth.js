@@ -3,14 +3,14 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const supabase = require('../lib/supabase');
 const { logTrustEvent } = require('../lib/trustEngine');
+const { sendOtp } = require('../services/smsService');
 
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
 async function sendOtpSms(phone, otp) {
-  // Production: integrate Africa's Talking SMS API
-  console.log(`[NEXUM OTP] Phone: ${phone} → Code: ${otp}`);
+  await sendOtp(phone, otp);
   return true;
 }
 
