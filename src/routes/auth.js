@@ -3,23 +3,18 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const supabase = require('../lib/supabase');
 const { logTrustEvent } = require('../lib/trustEngine');
-const { sendOtp } = require('../services/smsService');
+const { sendOtpEmail } = require('../services/emailService');
 
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-async function sendOtpSms(phone, otp) {
-  await sendOtp(phone, otp);
-  return true;
-}
-
 // ─── POST /register ───────────────────────────────
 router.post('/register', async (req, res) => {
   try {
-    const { phone, full_name } = req.body;
-    if (!phone || !full_name) {
-      return res.status(400).json({ error: 'phone and full_name are required' });
+    const { phone, full_name, email } = req.body;
+    if (!phone || !full_name || !email) {
+      return res.status(400).json({ error: 'phone, full_name and email are required' });
     }
 
     const { data: existing } = await supabase
@@ -31,7 +26,7 @@ router.post('/register', async (req, res) => {
 
     const { data: user, error } = await supabase
       .from('users')
-      .insert({ phone, full_name, is_verified: false })
+      .insert({ phone, full_name, email, is_verified: false })
       .select()
       .single();
 
@@ -46,10 +41,10 @@ router.post('/register', async (req, res) => {
       expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
     });
 
-    await sendOtpSms(phone, otp);
+    await sendOtpEmail(email, otp);
 
     res.status(201).json({
-      message: 'OTP sent. Verify your phone to continue.',
+      message: 'OTP sent to your email. Verify to continue.',
       nexum_id: user.nexum_id,
       expires_in: 600,
     });
@@ -101,7 +96,7 @@ router.post('/verify-otp', async (req, res) => {
     );
 
     res.json({
-      message: 'Phone verified. Welcome to NEXUM.',
+      message: 'Verified. Welcome to NEXUM.',
       token,
       user: {
         nexum_id: user.nexum_id,
@@ -150,7 +145,7 @@ router.post('/login', async (req, res) => {
     if (!phone) return res.status(400).json({ error: 'phone is required' });
 
     const { data: user } = await supabase
-      .from('users').select('id').eq('phone', phone).single();
+      .from('users').select('id, email').eq('phone', phone).single();
 
     if (!user) return res.status(404).json({ error: 'Phone not registered. Please sign up.' });
 
@@ -163,8 +158,8 @@ router.post('/login', async (req, res) => {
       expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
     });
 
-    await sendOtpSms(phone, otp);
-    res.json({ message: 'OTP sent.', expires_in: 600 });
+    await sendOtpEmail(user.email, otp);
+    res.json({ message: 'OTP sent to your email.', expires_in: 600 });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
