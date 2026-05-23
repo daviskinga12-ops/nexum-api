@@ -1,14 +1,14 @@
 {
   "name": "nexum-api",
   "version": "1.0.0",
-  "description": "",
+  "description": "NEXUM Trust Layer — The infrastructure beneath every exchange.",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["nexum", "trust", "fintech", "kenya"],
+  "author": "NEXUM",
   "license": "ISC",
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",
@@ -22,6 +22,7 @@
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.10.1",
+    "nodemailer": "^6.9.0",
     "uuid": "^14.0.0"
   }
 }
