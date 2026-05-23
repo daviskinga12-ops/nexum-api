@@ -5,6 +5,33 @@ const supabase = require('../lib/supabase');
 const { logTrustEvent } = require('../lib/trustEngine');
 const { sendOtpEmail } = require('../services/emailService');
 
+// ─── SUPPORTED COUNTRIES ─────────────────────────
+const COUNTRIES = {
+  KE: { code: '+254', name: 'Kenya',    pattern: /^\+2547\d{8}$|^\+25410\d{7}$|^\+25411\d{7}$|^\+25477\d{7}$/ },
+  TZ: { code: '+255', name: 'Tanzania', pattern: /^\+255\d{9}$/ },
+  UG: { code: '+256', name: 'Uganda',   pattern: /^\+256\d{9}$/ },
+  RW: { code: '+250', name: 'Rwanda',   pattern: /^\+250\d{9}$/ },
+  ET: { code: '+251', name: 'Ethiopia', pattern: /^\+251\d{9}$/ },
+  NG: { code: '+234', name: 'Nigeria',  pattern: /^\+234\d{10}$/ },
+  GH: { code: '+233', name: 'Ghana',   pattern: /^\+233\d{9}$/ },
+};
+
+function normalisePhone(phone, countryKey) {
+  let p = phone.replace(/[\s\-\(\)]/g, '');
+  if (p.startsWith('+')) return p;
+  if (p.startsWith('00')) return '+' + p.slice(2);
+  const country = COUNTRIES[countryKey];
+  if (!country) return p;
+  if (p.startsWith('0')) return country.code + p.slice(1);
+  return '+' + p;
+}
+
+function validatePhone(phone, countryKey) {
+  const country = COUNTRIES[countryKey];
+  if (!country) return false;
+  return country.pattern.test(phone);
+}
+
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
@@ -12,13 +39,24 @@ function generateOTP() {
 // ─── POST /register ───────────────────────────────
 router.post('/register', async (req, res) => {
   try {
-    const { phone, full_name, email } = req.body;
+    const { phone, full_name, email, country = 'KE' } = req.body;
+
     if (!phone || !full_name || !email) {
       return res.status(400).json({ error: 'phone, full_name and email are required' });
     }
 
+    if (!COUNTRIES[country]) {
+      return res.status(400).json({ error: 'Unsupported country.' });
+    }
+
+    const normalisedPhone = normalisePhone(phone, country);
+
+    if (!validatePhone(normalisedPhone, country)) {
+      return res.status(400).json({ error: `Invalid phone number for ${COUNTRIES[country].name}.` });
+    }
+
     const { data: existing } = await supabase
-      .from('users').select('id').eq('phone', phone).single();
+      .from('users').select('id').eq('phone', normalisedPhone).single();
 
     if (existing) {
       return res.status(409).json({ error: 'Phone number already registered' });
@@ -26,7 +64,7 @@ router.post('/register', async (req, res) => {
 
     const { data: user, error } = await supabase
       .from('users')
-      .insert({ phone, full_name, email, is_verified: false })
+      .insert({ phone: normalisedPhone, full_name, email, country, is_verified: false })
       .select()
       .single();
 
@@ -36,7 +74,7 @@ router.post('/register', async (req, res) => {
     const otpHash = await bcrypt.hash(otp, 10);
 
     await supabase.from('otp_sessions').insert({
-      phone,
+      phone: normalisedPhone,
       otp_hash: otpHash,
       expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
     });
@@ -56,15 +94,17 @@ router.post('/register', async (req, res) => {
 // ─── POST /verify-otp ─────────────────────────────
 router.post('/verify-otp', async (req, res) => {
   try {
-    const { phone, otp } = req.body;
+    const { phone, otp, country = 'KE' } = req.body;
     if (!phone || !otp) {
       return res.status(400).json({ error: 'phone and otp are required' });
     }
 
+    const normalisedPhone = normalisePhone(phone, country);
+
     const { data: session } = await supabase
       .from('otp_sessions')
       .select('*')
-      .eq('phone', phone)
+      .eq('phone', normalisedPhone)
       .eq('used', false)
       .gte('expires_at', new Date().toISOString())
       .order('created_at', { ascending: false })
@@ -83,11 +123,11 @@ router.post('/verify-otp', async (req, res) => {
     await supabase.from('otp_sessions').update({ used: true }).eq('id', session.id);
 
     const { data: user } = await supabase
-      .from('users').select('*').eq('phone', phone).single();
+      .from('users').select('*').eq('phone', normalisedPhone).single();
 
     await supabase.from('users').update({ is_verified: true }).eq('id', user.id);
 
-    await logTrustEvent(user.id, 'phone_verified', { phone }, 'auth');
+    await logTrustEvent(user.id, 'phone_verified', { phone: normalisedPhone }, 'auth');
 
     const token = jwt.sign(
       { userId: user.id, phone: user.phone, nexumId: user.nexum_id },
@@ -102,6 +142,7 @@ router.post('/verify-otp', async (req, res) => {
         nexum_id: user.nexum_id,
         full_name: user.full_name,
         phone: user.phone,
+        country: user.country,
         is_verified: true,
       },
     });
@@ -141,11 +182,13 @@ router.post('/identity', require('../middleware/auth').requireAuth, async (req, 
 // ─── POST /login ──────────────────────────────────
 router.post('/login', async (req, res) => {
   try {
-    const { phone } = req.body;
+    const { phone, country = 'KE' } = req.body;
     if (!phone) return res.status(400).json({ error: 'phone is required' });
 
+    const normalisedPhone = normalisePhone(phone, country);
+
     const { data: user } = await supabase
-      .from('users').select('id, email').eq('phone', phone).single();
+      .from('users').select('id, email').eq('phone', normalisedPhone).single();
 
     if (!user) return res.status(404).json({ error: 'Phone not registered. Please sign up.' });
 
@@ -153,7 +196,7 @@ router.post('/login', async (req, res) => {
     const otpHash = await bcrypt.hash(otp, 10);
 
     await supabase.from('otp_sessions').insert({
-      phone,
+      phone: normalisedPhone,
       otp_hash: otpHash,
       expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
     });
