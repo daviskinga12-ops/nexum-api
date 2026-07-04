@@ -1,5 +1,6 @@
 require('dotenv').config();
 const app = require('./app');
+const { smsConfigured, emailConfigured } = require('./services/otpDelivery');
 
 const PORT = process.env.PORT || 3000;
 
@@ -8,6 +9,12 @@ const missing = required.filter((key) => !process.env[key]);
 if (missing.length) {
   console.error('[NEXUM] Missing required env vars:', missing.join(', '));
   process.exit(1);
+}
+
+if (!smsConfigured() && !emailConfigured()) {
+  console.warn('[NEXUM] Warning: No OTP delivery configured (set AT_* for SMS or GMAIL_* for email fallback)');
+} else if (!smsConfigured()) {
+  console.warn('[NEXUM] Warning: SMS not configured — OTP will use email only (no phone_verified trust score)');
 }
 
 app.listen(PORT, '0.0.0.0', () => {

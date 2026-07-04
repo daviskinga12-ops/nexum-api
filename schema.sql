@@ -118,13 +118,17 @@ CREATE TABLE logistics_orders (
 
 -- ─── OTP SESSIONS ─────────────────────────────────────
 CREATE TABLE otp_sessions (
-  id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  phone      TEXT NOT NULL,
-  otp_hash   TEXT NOT NULL,
-  expires_at TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '10 minutes',
-  used       BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  phone            TEXT NOT NULL,
+  otp_hash         TEXT NOT NULL,
+  delivery_channel TEXT NOT NULL DEFAULT 'sms',
+  expires_at       TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '10 minutes',
+  used             BOOLEAN DEFAULT FALSE,
+  created_at       TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Existing deployments:
+-- ALTER TABLE otp_sessions ADD COLUMN IF NOT EXISTS delivery_channel TEXT NOT NULL DEFAULT 'sms';
 
 -- ═══════════════════════════════════════════════════
 -- INDEXES
