@@ -18,12 +18,12 @@ const sms = at.SMS;
  * @param {string} code   - 6-digit OTP string
  */
 async function sendOtp(phone, code) {
-  // Normalise to +254 format
-  const normalised = phone.startsWith('0')
-    ? '+254' + phone.slice(1)
-    : phone.startsWith('254')
-    ? '+' + phone
-    : phone;
+  let normalised = phone.replace(/[\s\-()]/g, '');
+  if (!normalised.startsWith('+')) {
+    if (normalised.startsWith('0')) normalised = '+254' + normalised.slice(1);
+    else if (normalised.startsWith('254')) normalised = '+' + normalised;
+    else normalised = '+' + normalised;
+  }
 
   const message = `Your NEXUM verification code is: ${code}\n\nValid for 10 minutes. Do not share this code.`;
 

@@ -3,7 +3,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const supabase = require('../lib/supabase');
 const { logTrustEvent } = require('../lib/trustEngine');
-const { sendOtpEmail } = require('../services/emailService');
+const { sendOtp } = require('../services/smsService');
 
 // ─── SUPPORTED COUNTRIES ─────────────────────────
 const COUNTRIES = {
@@ -79,10 +79,10 @@ router.post('/register', async (req, res) => {
       expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
     });
 
-    await sendOtpEmail(email, otp);
+    await sendOtp(normalisedPhone, otp);
 
     res.status(201).json({
-      message: 'OTP sent to your email. Verify to continue.',
+      message: 'OTP sent to your phone. Verify to continue.',
       nexum_id: user.nexum_id,
       expires_in: 600,
     });
@@ -201,8 +201,8 @@ router.post('/login', async (req, res) => {
       expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
     });
 
-    await sendOtpEmail(user.email, otp);
-    res.json({ message: 'OTP sent to your email.', expires_in: 600 });
+    await sendOtp(normalisedPhone, otp);
+    res.json({ message: 'OTP sent to your phone.', expires_in: 600 });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
