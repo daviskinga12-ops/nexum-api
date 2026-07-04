@@ -10,6 +10,9 @@
   "keywords": ["nexum", "trust", "fintech", "kenya"],
   "author": "NEXUM",
   "license": "ISC",
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",
     "africastalking": "^5.0.0",

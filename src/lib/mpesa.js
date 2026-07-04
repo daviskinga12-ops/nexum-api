@@ -26,15 +26,20 @@ async function getAccessToken() {
   return cachedToken;
 }
 
+// ─── FORMAT PHONE FOR DARAJA ─────────────────────
+// Accepts +254..., 254..., or 07... → 254712345678
+function formatMpesaPhone(phone) {
+  let p = phone.replace(/[\s\-()]/g, '');
+  if (p.startsWith('+')) p = p.slice(1);
+  if (p.startsWith('0')) return '254' + p.slice(1);
+  return p;
+}
+
 // ─── STK PUSH ────────────────────────────────────
 // Initiates M-Pesa payment prompt on user's phone.
 async function stkPush({ phone, amount, accountRef, description }) {
   const token = await getAccessToken();
-
-  // Format phone: 0712345678 → 254712345678
-  const formattedPhone = phone.startsWith('0')
-    ? '254' + phone.slice(1)
-    : phone;
+  const formattedPhone = formatMpesaPhone(phone);
 
   const timestamp = new Date()
     .toISOString()
