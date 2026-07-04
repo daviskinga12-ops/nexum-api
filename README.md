@@ -10,7 +10,7 @@ A trust-layer backend for Africa's informal economy. Removes trust, payment, log
 - **Framework**: Express.js
 - **Database**: Supabase (PostgreSQL)
 - **Payments**: Safaricom Daraja API (M-Pesa STK Push)
-- **Deployment**: Railway
+- **Deployment**: Render
 
 ---
 
@@ -61,11 +61,12 @@ cp .env.example .env
 npm run dev
 ```
 
-### 5. Deploy to Railway
+### 5. Deploy to Render
 - Push to GitHub
-- Connect repo to Railway
-- Add all env vars from `.env.example`
-- Railway auto-deploys on every push
+- In [Render](https://render.com), create a **Web Service** from this repo (or apply the `render.yaml` Blueprint)
+- Add all env vars from `.env.example` in the Render dashboard
+- Set `MPESA_CALLBACK_URL` to your Render URL + `/api/v1/mpesa/callback`
+- Render auto-deploys on every push to `main`
 
 ---
 
@@ -77,7 +78,7 @@ Key ones:
 - `SUPABASE_URL` + `SUPABASE_SERVICE_KEY` — from your Supabase project settings
 - `MPESA_CONSUMER_KEY` + `MPESA_CONSUMER_SECRET` — from Safaricom Developer Portal
 - `JWT_SECRET` — generate with `openssl rand -base64 32`
-- `MPESA_CALLBACK_URL` — your Railway URL + `/api/v1/mpesa/callback`
+- `MPESA_CALLBACK_URL` — your Render URL + `/api/v1/mpesa/callback`
 
 ---
 
@@ -103,7 +104,7 @@ nexum-api/
 │       └── logistics.js    Delivery order coordination
 ├── schema.sql              Supabase database schema
 ├── .env.example            Environment variables template
-└── railway.toml            Railway deployment config
+└── render.yaml             Render deployment config
 ```
 
 ---

@@ -41,7 +41,7 @@ router.post('/keys', requireAuth, async (req, res) => {
       queries_limit: client.queries_limit,
       billing_kes_per_month: selectedPlan.price,
       docs: 'https://docs.nexum.africa/api',
-      example: `curl -H "x-api-key: ${apiKey}" https://nexum-api.up.railway.app/api/v1/trust/0712345678`,
+      example: `curl -H "x-api-key: ${apiKey}" ${process.env.RENDER_EXTERNAL_URL || 'https://your-app.onrender.com'}/api/v1/trust/0712345678`,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
